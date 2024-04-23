@@ -1,0 +1,36 @@
+<html>
+  <head>
+    <title>Lista de usuários</title>
+    <script>
+      function loadData() {
+        fetch('http://localhost:3333/api/v1/users')
+          .then((response) => response.json())
+          .then((data) => {
+            if (!data.error) {
+              var lista = document.getElementById('content-usuarios');
+              data.forEach((usuario) => {
+                var newDiv = document.createElement('div');
+                var name = document.createElement('span');
+                var email = document.createElement('span');
+                name.innerHTML = usuario.name;
+                email.innerHTML = usuario.email;
+                newDiv.appendChild(name);
+                newDiv.appendChild(email);
+                lista.appendChild(newDiv);
+              });
+            }
+          });
+      }
+    </script>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body onload="loadData()">
+    <nav class="navbar">
+      <a href="./index.html">Home</a>
+      <a href="./sobre.html">Sobre</a>
+    </nav>
+    <div id="content-usuarios" class="content-usuarios">
+      <h2>Lista de usuários</h2>
+    </div>
+  </body>
+</html>
