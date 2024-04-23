@@ -20,4 +20,26 @@ describe('template spec', () => {
     cy.visit('/sobre');
     cy.url().should('equal', 'https://rarolabs.com.br/sobre');
   });
+
+  it('Deve localizar o link de sobre', function () {
+    cy.on('uncaught:exception', () => {
+      return false;
+    });
+
+    cy.viewport('macbook-16');
+    cy.visit('');
+    cy.get('header.grid2 div h1');
+    cy.contains('Grandes desafios');
+
+    cy.get("[href='/sobre']").eq(1).click();
+    cy.url().should('equal', 'https://rarolabs.com.br/sobre');
+  });
+
+  it('Deve preencher o formulário de contato', function () {
+    cy.visit('');
+    cy.contains('a', 'Contato').click();
+
+    cy.wait(2000);
+    cy.get('input[placeholder="testeste"]').type('seu nome');
+  });
 });
