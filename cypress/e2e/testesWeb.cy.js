@@ -1,5 +1,5 @@
 describe('template spec', () => {
-  it.only('Deve visitar o site institucional', () => {
+  it('Deve visitar o site institucional', () => {
     cy.visit('./app/index.html');
     cy.url().should('equal', 'https://rarolabs.com.br/');
   });
