@@ -3,7 +3,7 @@
     <title>Lista de usuários</title>
     <script>
       function loadData() {
-        fetch('http://localhost:3333/api/v1/users')
+        fetch('https://rarocrud-80bf38b38f1f.herokuapp.com/api/v1/users')
           .then((response) => response.json())
           .then((data) => {
             if (!data.error) {
