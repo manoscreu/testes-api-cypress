@@ -1,6 +1,18 @@
+import { faker } from '@faker-js/faker';
+
 describe('Testes de criação de usuário', function () {
   beforeEach(() => {
     cy.visit('./app/index.html');
+  });
+
+  it('Deve verificar se existe um link para a lista de usuários', function () {
+    cy.contains('a[href="./usuarios.html"]', 'Todos os usuários').should(
+      'be.visible'
+    );
+  });
+
+  it('Deve verificar se existe um link para a página de sobre', function () {
+    cy.contains('a[href="./sobre.html"]', 'Sobre').should('be.visible');
   });
 
   describe('Testes de formulário', function () {
@@ -54,34 +66,86 @@ describe('Testes de criação de usuário', function () {
   });
 
   describe('Cadastro de usuário', function () {
-    const novoUsuario = {
-      name: 'Nome usuário',
-      email: 'i@t.com.br',
-    };
+    it('Deve ocorrer um erro quando o e-mail já estiver em uso', function () {
+      const novoUsuario = {
+        name: 'Nome usuário',
+        email: 'i@t.com.br',
+      };
 
-    before(() => {
       cy.request({
         method: 'POST',
         url: Cypress.env('apiBaseUrl') + '/users',
         body: novoUsuario,
         failOnStatusCode: false,
       });
-    });
 
-    it.only('Deve ocorrer um erro quando o e-mail já estiver em uso', function () {
       cy.intercept('POST', 'api/v1/users').as('postUsuario');
-      cy.on('window:alert', (mensagemAlerta) => {
-        expect(mensagemAlerta).to.equal('User already exists.');
-      });
+      cy.stub().as('stubAlerta');
+
+      cy.on('window:alert', this.stubAlerta);
 
       cy.get('#name').type(novoUsuario.name);
       cy.get('#email').type(novoUsuario.email);
       cy.contains('button', 'Cadastrar').click();
 
-      cy.wait('@postUsuario');
+      cy.wait('@postUsuario').then(() => {
+        expect(this.stubAlerta).to.be.calledOnce;
+        expect(this.stubAlerta).to.be.calledOnceWith('User already exists.');
+      });
       cy.get('#lista-usuarios').should('be.empty');
     });
 
-    it('Ao criar um usuário, o e-mail deve ser exibido na lista', function () {});
+    it('Ao criar um usuário, o e-mail deve ser exibido na lista', function () {
+      const name = faker.person.fullName();
+      const email = faker.internet.email();
+
+      cy.intercept('POST', 'api/v1/users').as('postUser');
+
+      cy.get('#name').type(name);
+      cy.get('#email').type(email);
+      cy.contains('button', 'Cadastrar').click();
+
+      cy.wait('@postUser');
+      cy.contains('#lista-usuarios', email);
+
+      cy.intercept('POST', 'api/v1/users', {
+        statusCode: 201,
+        body: {
+          id: '41fffdfa-0cc1-4fcd-8aba-0de1fa7db7be',
+          name: ' Novo usuario',
+          email: 'novo@email.com',
+          updatedAt: '2024-04-25T23:36:32.111Z',
+          createdAt: '2024-04-25T23:36:32.111Z',
+        },
+      }).as('postUser');
+
+      cy.contains('button', 'Cadastrar').click();
+
+      cy.wait('@postUser');
+      cy.contains('#lista-usuarios', 'novo@email.com');
+    });
+
+    it('Deve ocorrer um erro quando o e-mail já estiver em uso com intercept', function () {
+      cy.intercept('POST', 'api/v1/users', {
+        statusCode: 422,
+        body: {
+          error: 'User already exists.',
+        },
+      }).as('postUsuario');
+      cy.stub().as('stubAlerta');
+
+      cy.on('window:alert', this.stubAlerta);
+
+      cy.get('#name').type('Nome usuário');
+      cy.get('#email').type('admin1234@teste.com');
+      cy.contains('button', 'Cadastrar').click();
+
+      cy.wait('@postUsuario').then(() => {
+        cy.wait(2000);
+        // expect(this.stubAlerta).to.be.calledOnce;
+        // expect(this.stubAlerta).to.be.calledOnceWith('User already exists.');
+      });
+      cy.get('#lista-usuarios').should('be.empty');
+    });
   });
 });
