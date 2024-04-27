@@ -1,37 +1,41 @@
 import { faker } from '@faker-js/faker';
+import CadastroPage from '../support/pages/cadastro.page';
+import ListaUsuarioPage from '../support/pages/listaUsuarios.page';
 
 describe('Testes de criação de usuário', function () {
+  var paginaCadastro = new CadastroPage();
+  var paginaListaUsuario = new ListaUsuarioPage();
   beforeEach(() => {
     cy.visit('./app/index.html');
   });
 
   it('Deve verificar se existe um link para a lista de usuários', function () {
-    cy.contains('a[href="./usuarios.html"]', 'Todos os usuários').should(
+    cy.contains(paginaCadastro.linkPaginaUsuarios, 'Todos os usuários').should(
       'be.visible'
     );
   });
 
   it('Deve verificar se existe um link para a página de sobre', function () {
-    cy.contains('a[href="./sobre.html"]', 'Sobre').should('be.visible');
+    cy.contains(paginaCadastro.linkPaginaSobre, 'Sobre').should('be.visible');
   });
 
   describe('Testes de formulário', function () {
     it('Não deve ser possível cadastrar o usuário sem informar um nome', function () {
       cy.intercept('POST', '/api/v1/users').as('postUsuario');
 
-      cy.get('#email').type('teste@teste.com');
-      cy.contains('button', 'Cadastrar').click();
+      paginaCadastro.typeEmail('teste@teste.com');
+      paginaCadastro.clickButtonCadastrar();
 
       cy.wait('@postUsuario');
-      cy.get('#lista-usuarios').should('be.empty');
+      paginaCadastro.getListaUsuarios().should('be.empty');
     });
 
     it('Não deve ser possível cadastrar o usuário sem informar um e-mail', function () {
       cy.intercept('POST', '/api/v1/users').as('postUsuario');
       cy.intercept('GET', '/api/v1/users').as('consultaUsuarios');
 
-      cy.get('#name').type('Usuário teste');
-      cy.contains('button', 'Cadastrar').click();
+      paginaCadastro.typeNome('Usuário teste');
+      paginaCadastro.clickButtonCadastrar();
 
       // apenas exemplo
       cy.wait('@postUsuario').then((resultado) => {
@@ -39,29 +43,28 @@ describe('Testes de criação de usuário', function () {
         expect(resultado.response.statusCode).to.equal(400);
       });
       // fim exemplo
-      cy.get('#lista-usuarios').should('be.empty');
+      paginaCadastro.getListaUsuarios().should('be.empty');
 
-      cy.contains('Todos os usuários').click();
+      cy.get(paginaCadastro.linkPaginaUsuarios).click();
       cy.wait('@consultaUsuarios');
-      cy.get('#content-usuarios').should('not.contain', 'Usuário teste');
+      cy.get(paginaListaUsuario.listaUsuarios).should(
+        'not.contain',
+        'Usuário teste'
+      );
     });
 
     it('O formato de e-mail deve ser válido', function () {
-      cy.get('#name').type('Nome usuário');
-      cy.get('#email').type('emailinvalido');
-      cy.contains('button', 'Cadastrar').click();
-
-      cy.get('#lista-usuarios').should('be.empty');
+      paginaCadastro.cadastrar('Nome usuário', 'emailinvalido');
+      paginaCadastro.getListaUsuarios().should('be.empty');
     });
 
     it('Deve ser possível limpar os campos do formulário', function () {
-      cy.get('#name').type('Nome usuário');
-      cy.get('#email').type('example@teste.com');
+      paginaCadastro.typeNome('Nome usuário');
+      paginaCadastro.typeEmail('example@teste.com');
+      paginaCadastro.clickButtonLimpar();
 
-      cy.get('[data-test-id="clearButton"]').click();
-
-      cy.get('#name').invoke('val').should('be.empty');
-      cy.get('#email').invoke('val').should('be.empty');
+      cy.get(paginaCadastro.inputNome).invoke('val').should('be.empty');
+      cy.get(paginaCadastro.inputEmail).invoke('val').should('be.empty');
     });
   });
 
@@ -84,15 +87,14 @@ describe('Testes de criação de usuário', function () {
 
       cy.on('window:alert', this.stubAlerta);
 
-      cy.get('#name').type(novoUsuario.name);
-      cy.get('#email').type(novoUsuario.email);
-      cy.contains('button', 'Cadastrar').click();
+      paginaCadastro.cadastrar(novoUsuario.name, novoUsuario.email);
 
       cy.wait('@postUsuario').then(() => {
+        cy.wait(1000);
         expect(this.stubAlerta).to.be.calledOnce;
         expect(this.stubAlerta).to.be.calledOnceWith('User already exists.');
       });
-      cy.get('#lista-usuarios').should('be.empty');
+      paginaCadastro.getListaUsuarios().should('be.empty');
     });
 
     it('Ao criar um usuário, o e-mail deve ser exibido na lista', function () {
@@ -101,12 +103,10 @@ describe('Testes de criação de usuário', function () {
 
       cy.intercept('POST', 'api/v1/users').as('postUser');
 
-      cy.get('#name').type(name);
-      cy.get('#email').type(email);
-      cy.contains('button', 'Cadastrar').click();
+      paginaCadastro.cadastrar(name, email);
 
       cy.wait('@postUser');
-      cy.contains('#lista-usuarios', email);
+      cy.contains(paginaCadastro.listaUsuarios, email);
 
       cy.intercept('POST', 'api/v1/users', {
         statusCode: 201,
@@ -119,33 +119,25 @@ describe('Testes de criação de usuário', function () {
         },
       }).as('postUser');
 
-      cy.contains('button', 'Cadastrar').click();
+      paginaCadastro.clickButtonCadastrar();
 
       cy.wait('@postUser');
-      cy.contains('#lista-usuarios', 'novo@email.com');
+      cy.contains(paginaCadastro.listaUsuarios, 'novo@email.com');
     });
 
     it('Deve ocorrer um erro quando o e-mail já estiver em uso com intercept', function () {
       cy.intercept('POST', 'api/v1/users', {
         statusCode: 422,
-        body: {
-          error: 'User already exists.',
-        },
+        fixture: '/mocks/mockErrorUserAlreadyExists.json',
       }).as('postUsuario');
       cy.stub().as('stubAlerta');
 
       cy.on('window:alert', this.stubAlerta);
 
-      cy.get('#name').type('Nome usuário');
-      cy.get('#email').type('admin1234@teste.com');
-      cy.contains('button', 'Cadastrar').click();
+      paginaCadastro.cadastrar('Nome usuário', 'admin1234@teste.com');
 
-      cy.wait('@postUsuario').then(() => {
-        cy.wait(2000);
-        // expect(this.stubAlerta).to.be.calledOnce;
-        // expect(this.stubAlerta).to.be.calledOnceWith('User already exists.');
-      });
-      cy.get('#lista-usuarios').should('be.empty');
+      cy.wait('@postUsuario');
+      paginaCadastro.getListaUsuarios().should('be.empty');
     });
   });
 });
